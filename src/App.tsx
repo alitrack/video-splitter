@@ -253,6 +253,59 @@ const App: React.FC = () => {
     }
   };
 
+  // 手动分割点处理函数
+  const addManualSplitPoint = (timeInput: string) => {
+    try {
+      let seconds: number;
+      
+      // 检查是否是时:分:秒格式
+      if (timeInput.includes(':')) {
+        const parts = timeInput.split(':').map(p => parseInt(p.trim()));
+        if (parts.length === 3) {
+          // 时:分:秒
+          seconds = parts[0] * 3600 + parts[1] * 60 + parts[2];
+        } else if (parts.length === 2) {
+          // 分:秒
+          seconds = parts[0] * 60 + parts[1];
+        } else {
+          throw new Error('时间格式错误');
+        }
+      } else {
+        // 直接是秒数
+        seconds = parseFloat(timeInput);
+      }
+
+      if (isNaN(seconds) || seconds < 0) {
+        message.error('请输入有效的时间');
+        return;
+      }
+
+      if (videoInfo && seconds >= videoInfo.duration) {
+        message.error(`分割点不能超过视频时长 ${formatTime(videoInfo.duration)}`);
+        return;
+      }
+
+      // 检查是否已存在相同的分割点
+      if (splitParams.manualPoints.includes(seconds)) {
+        message.error('该分割点已存在');
+        return;
+      }
+
+      // 添加分割点并排序
+      const newPoints = [...splitParams.manualPoints, seconds].sort((a, b) => a - b);
+      setSplitParams(prev => ({ ...prev, manualPoints: newPoints }));
+      message.success(`已添加分割点：${formatTime(seconds)}`);
+    } catch (error) {
+      message.error('时间格式错误，请使用 时:分:秒 或 秒数 格式');
+    }
+  };
+
+  const removeManualSplitPoint = (index: number) => {
+    const newPoints = splitParams.manualPoints.filter((_, i) => i !== index);
+    setSplitParams(prev => ({ ...prev, manualPoints: newPoints }));
+    message.success('分割点已删除');
+  };
+
 
   const handlePreviewSplitPoints = async () => {
     if (!videoPath) {
@@ -605,6 +658,91 @@ const App: React.FC = () => {
                   </div>
                 </Col>
               </Row>
+            )}
+
+            {splitType === 'manual' && (
+              <div>
+                <Row gutter={[16, 16]} style={{ marginBottom: '16px' }}>
+                  <Col span={24}>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '8px' }}>
+                        手动添加分割点（格式：时:分:秒 或 秒数）
+                      </label>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <Input
+                          placeholder="例如：01:30:00 或 90"
+                          onPressEnter={(e) => {
+                            const value = (e.target as HTMLInputElement).value.trim();
+                            if (value) {
+                              addManualSplitPoint(value);
+                              (e.target as HTMLInputElement).value = '';
+                            }
+                          }}
+                          style={{ flex: 1 }}
+                        />
+                        <Button 
+                          type="primary" 
+                          onClick={() => {
+                            const input = document.querySelector('input[placeholder*="例如"]') as HTMLInputElement;
+                            if (input && input.value.trim()) {
+                              addManualSplitPoint(input.value.trim());
+                              input.value = '';
+                            }
+                          }}
+                        >
+                          添加
+                        </Button>
+                        <Button 
+                          onClick={() => setSplitParams(prev => ({ ...prev, manualPoints: [] }))}
+                        >
+                          清空
+                        </Button>
+                      </div>
+                      <div style={{ marginTop: '8px', fontSize: '12px', color: '#666' }}>
+                        支持格式：时:分:秒（如 01:30:45）或秒数（如 90）
+                      </div>
+                    </div>
+                  </Col>
+                </Row>
+                
+                {splitParams.manualPoints.length > 0 && (
+                  <div style={{ marginBottom: '16px' }}>
+                    <label style={{ display: 'block', marginBottom: '8px' }}>
+                      当前分割点 ({splitParams.manualPoints.length}个)：
+                    </label>
+                    <div style={{ 
+                      maxHeight: '120px', 
+                      overflowY: 'auto', 
+                      border: '1px solid #d9d9d9', 
+                      borderRadius: '6px', 
+                      padding: '8px' 
+                    }}>
+                      <Space direction="vertical" style={{ width: '100%' }}>
+                        {splitParams.manualPoints.map((point, index) => (
+                          <div key={index} style={{ 
+                            display: 'flex', 
+                            justifyContent: 'space-between', 
+                            alignItems: 'center',
+                            padding: '4px 8px',
+                            backgroundColor: '#f5f5f5',
+                            borderRadius: '4px'
+                          }}>
+                            <span>分割点 {index + 1}: {formatTime(point)}</span>
+                            <Button 
+                              type="link" 
+                              size="small" 
+                              danger
+                              onClick={() => removeManualSplitPoint(index)}
+                            >
+                              删除
+                            </Button>
+                          </div>
+                        ))}
+                      </Space>
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
 
             <Divider />

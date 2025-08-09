@@ -12,7 +12,11 @@
     "category": "Video",
     "copyright": "Copyright © 2024 Your Name",
     "resources": [],
-        "macOS": {
+    "icon": [
+      "icons/icon.png",
+      "icons/icon.svg"
+    ],
+    "macOS": {
       "entitlements": null,
       "exceptionDomain": "",
       "frameworks": [],
