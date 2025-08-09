@@ -351,12 +351,32 @@ const App: React.FC = () => {
   return (
     <Layout className="app">
       <Header className="header">
-        <Title level={1} style={{ color: 'white', margin: 0 }}>
-          <VideoCameraOutlined /> 视频分割工具
-        </Title>
-        <Paragraph style={{ color: 'white', margin: '8px 0 0 0' }}>
-          专业视频分割工具 - 支持场景检测、时间分割、手动分割
-        </Paragraph>
+        <div className="header-content">
+          <Title level={1} style={{ color: 'white', margin: 0, fontSize: '2.5rem', fontWeight: 'bold' }}>
+            <VideoCameraOutlined style={{ marginRight: '12px', fontSize: '2.2rem' }} /> 
+            视频分割工具
+          </Title>
+          <Paragraph style={{ 
+            color: 'rgba(255, 255, 255, 0.9)', 
+            margin: '12px 0 0 0', 
+            fontSize: '1.1rem',
+            fontWeight: '300'
+          }}>
+            🎬 专业视频分割工具 - 支持场景检测、时间分割、手动分割
+          </Paragraph>
+          <div style={{ 
+            marginTop: '16px', 
+            display: 'flex', 
+            justifyContent: 'center', 
+            gap: '24px',
+            fontSize: '0.9rem',
+            color: 'rgba(255, 255, 255, 0.8)'
+          }}>
+            <span>⚡ 高性能处理</span>
+            <span>🎯 精确分割</span>
+            <span>🚀 简单易用</span>
+          </div>
+        </div>
       </Header>
 
       <Content className="main-container">
