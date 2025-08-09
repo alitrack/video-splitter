@@ -352,7 +352,7 @@ const App: React.FC = () => {
     <Layout className="app">
       <Header className="header">
         <div className="header-content">
-          <Title level={1} style={{ color: 'white', margin: 0, fontSize: '2.5rem', fontWeight: 'bold' }}>
+          <Title level={1} style={{ color: 'white', margin: '-8px 0 0 0', fontSize: '2.5rem', fontWeight: 'bold' }}>
             <VideoCameraOutlined style={{ marginRight: '12px', fontSize: '2.2rem' }} /> 
             视频分割工具
           </Title>
