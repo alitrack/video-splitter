@@ -1,0 +1,56 @@
+{
+  "productName": "Video Splitter",
+  "version": "1.0.0",
+  "identifier": "com.yourcompany.video-splitter",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "./dist"
+  },
+  "bundle": {
+    "active": true,
+    "category": "Video",
+    "copyright": "Copyright © 2024 Your Name",
+    "resources": [],
+        "macOS": {
+      "entitlements": null,
+      "exceptionDomain": "",
+      "frameworks": [],
+      "providerShortName": null,
+      "signingIdentity": null
+    },
+    "windows": {
+      "certificateThumbprint": null,
+      "digestAlgorithm": "sha256",
+      "timestampUrl": ""
+    }
+  },
+  "plugins": {
+    "shell": {
+      "open": true,
+      "execute": true
+    },
+    "dialog": {
+      "all": true
+    },
+    "fs": {
+      "all": true
+    }
+  },
+  "app": {
+    "security": {
+      "csp": "default-src 'self' https://tauri.localhost"
+    },
+    "windows": [
+      {
+        "fullscreen": false,
+        "height": 800,
+        "resizable": true,
+        "title": "Video Splitter",
+        "width": 1200,
+        "minWidth": 800,
+        "minHeight": 600
+      }
+    ]
+  }
+}
