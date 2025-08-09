@@ -280,8 +280,9 @@ const App: React.FC = () => {
         return;
       }
 
-      if (videoInfo && seconds >= videoInfo.duration) {
-        message.error(`分割点不能超过视频时长 ${formatTime(videoInfo.duration)}`);
+      // 允许分割点接近视频结尾，但不能超过视频时长减去1秒
+      if (videoInfo && seconds >= (videoInfo.duration - 1)) {
+        message.error(`分割点不能超过视频时长 ${formatTime(videoInfo.duration)}，输入的时间为 ${formatTime(seconds)}。建议设置在 ${formatTime(videoInfo.duration - 1)} 之前`);
         return;
       }
 
