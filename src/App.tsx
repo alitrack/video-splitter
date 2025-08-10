@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Layout, Typography, Card, Row, Col, Button, Input, InputNumber, message, Progress, Divider, Space, Tag } from 'antd';
 import { VideoCameraOutlined, ScissorOutlined, ClockCircleOutlined, PartitionOutlined, PlayCircleOutlined, InfoCircleOutlined, DownloadOutlined, FolderOpenOutlined } from '@ant-design/icons';
 import { VideoService } from './services/video';
+import { ffmpegWasmService } from './services/ffmpegWasm';
 import { VideoInfo, SplitRequest, SplitType } from './types/video';
 import { formatFileSize, formatTime } from './utils/format';
 import './App.css';
@@ -33,6 +34,8 @@ const App: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [outputDir, setOutputDir] = useState<string>('');
   const [ffmpegAvailable, setFfmpegAvailable] = useState<boolean>(true);
+  const [ffmpegWasmAvailable, setFfmpegWasmAvailable] = useState<boolean>(false);
+  const [ffmpegWasmLoading, setFfmpegWasmLoading] = useState<boolean>(false);
   const [scenes, setScenes] = useState<any[]>([]);
 
   // 检查FFmpeg是否可用
@@ -43,12 +46,27 @@ const App: React.FC = () => {
         setFfmpegAvailable(true);
       } catch (error) {
         setFfmpegAvailable(false);
-        message.error('FFmpeg未安装，请先安装FFmpeg');
+        // 如果系统FFmpeg不可用，尝试初始化FFmpeg.wasm
+        initializeFFmpegWasm();
       }
     };
     
     checkFFmpeg();
   }, []);
+
+  const initializeFFmpegWasm = async () => {
+    setFfmpegWasmLoading(true);
+    try {
+      await ffmpegWasmService.initialize();
+      setFfmpegWasmAvailable(true);
+      message.success('FFmpeg.wasm 已加载，可以使用浏览器内视频处理');
+    } catch (error) {
+      console.error('FFmpeg.wasm initialization failed:', error);
+      message.error('FFmpeg.wasm 加载失败，请安装系统FFmpeg或检查网络连接');
+    } finally {
+      setFfmpegWasmLoading(false);
+    }
+  };
 
 
 
@@ -87,8 +105,8 @@ const App: React.FC = () => {
       return;
     }
 
-    if (!ffmpegAvailable) {
-      message.error('FFmpeg未安装，无法进行视频分割');
+    if (!ffmpegAvailable && !ffmpegWasmAvailable) {
+      message.error('视频处理引擎不可用，请安装FFmpeg或加载FFmpeg.wasm');
       return;
     }
 
@@ -381,19 +399,52 @@ const App: React.FC = () => {
 
       <Content className="main-container">
         {/* FFmpeg可用性检查 */}
-        {!ffmpegAvailable && (
+        {!ffmpegAvailable && !ffmpegWasmAvailable && !ffmpegWasmLoading && (
           <Card className="warning-card" style={{ marginBottom: '16px', backgroundColor: '#fff2f0', borderColor: '#ffccc7' }}>
             <Title level={4} style={{ color: '#cf1322' }}>
-              ⚠️ FFmpeg未安装
+              ⚠️ 视频处理引擎不可用
             </Title>
             <Paragraph style={{ color: '#cf1322' }}>
-              请先安装FFmpeg才能使用视频分割功能。
+              系统FFmpeg和FFmpeg.wasm都不可用。请选择以下方案之一：
+              <br />
+              <strong>方案1 - 安装系统FFmpeg（推荐，性能更好）：</strong>
               <br />
               macOS: <code>brew install ffmpeg</code>
               <br />
               Ubuntu: <code>sudo apt install ffmpeg</code>
               <br />
               Windows: 从 <a href="https://ffmpeg.org/download.html" target="_blank" rel="noopener noreferrer">FFmpeg官网</a> 下载
+              <br />
+              <strong>方案2 - 使用浏览器内处理：</strong>
+              <br />
+              <Button type="primary" onClick={initializeFFmpegWasm} style={{ marginTop: '8px' }}>
+                加载 FFmpeg.wasm（需要网络连接）
+              </Button>
+            </Paragraph>
+          </Card>
+        )}
+
+        {ffmpegWasmLoading && (
+          <Card style={{ marginBottom: '16px', backgroundColor: '#f6ffed', borderColor: '#b7eb8f' }}>
+            <Title level={4} style={{ color: '#389e0d' }}>
+              🔄 正在加载 FFmpeg.wasm...
+            </Title>
+            <Paragraph style={{ color: '#389e0d' }}>
+              首次加载需要下载约25MB的文件，请稍候...
+            </Paragraph>
+            <Progress percent={50} status="active" />
+          </Card>
+        )}
+
+        {ffmpegWasmAvailable && (
+          <Card style={{ marginBottom: '16px', backgroundColor: '#f6ffed', borderColor: '#b7eb8f' }}>
+            <Title level={4} style={{ color: '#389e0d' }}>
+              ✅ FFmpeg.wasm 已就绪
+            </Title>
+            <Paragraph style={{ color: '#389e0d' }}>
+              🌐 使用浏览器内视频处理 | 📦 无需安装额外软件 | ⚡ 即开即用
+              <br />
+              <small>注意：浏览器内处理速度比系统FFmpeg慢，适合小文件处理</small>
             </Paragraph>
           </Card>
         )}
@@ -802,7 +853,7 @@ const App: React.FC = () => {
                 size="large"
                 onClick={handleSplit}
                 loading={loading}
-                disabled={!videoInfo || !ffmpegAvailable}
+                disabled={!videoInfo || (!ffmpegAvailable && !ffmpegWasmAvailable)}
                 icon={<ScissorOutlined />}
               >
                 开始分割
