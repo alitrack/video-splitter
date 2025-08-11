@@ -195,13 +195,24 @@ const App: React.FC = () => {
 
       // 选择使用哪种分割方式
       let result;
+      console.log('Split engines status:', { ffmpegAvailable, ffmpegWasmAvailable, hasVideoFile: !!videoFile });
+      
       if (ffmpegAvailable) {
         // 使用系统FFmpeg
         console.log('Using system FFmpeg for splitting');
         result = await VideoService.splitVideo(request);
-      } else if (ffmpegWasmAvailable && videoFile) {
+      } else if (ffmpegWasmAvailable) {
         // 使用FFmpeg.wasm
         console.log('Using FFmpeg.wasm for splitting');
+        
+        // 如果没有videoFile，需要先从路径读取文件
+        let fileToProcess = videoFile;
+        if (!fileToProcess && videoPath) {
+          // 提示用户重新选择文件，因为FFmpeg.wasm需要File对象
+          message.error('FFmpeg.wasm需要重新选择文件，请使用拖拽或点击选择文件');
+          throw new Error('FFmpeg.wasm需要File对象，请重新选择文件');
+        }
+        
         const splitPoints = splitParams.manualPoints.length > 0 ? splitParams.manualPoints : [];
         
         // 如果是时间分割，生成分割点
@@ -216,7 +227,7 @@ const App: React.FC = () => {
           }
         }
         
-        const blobs = await ffmpegWasmService.splitVideo(videoFile, splitPoints, (progress) => {
+        const blobs = await ffmpegWasmService.splitVideo(fileToProcess, splitPoints, (progress) => {
           setProgress({
             current: progress,
             total: 100,
@@ -605,6 +616,8 @@ const App: React.FC = () => {
                 const filePath = await VideoService.selectVideoFile();
                 if (filePath) {
                   setVideoPath(filePath);
+                  // 清空之前的videoFile，因为路径选择无法提供File对象
+                  setVideoFile(null);
                   message.success('文件路径已选择，正在获取视频信息...');
                   
                   try {
@@ -615,6 +628,11 @@ const App: React.FC = () => {
                     setOutputDir(defaultOutputDir);
                     
                     message.success('视频信息获取成功，可以开始分割');
+                    
+                    // 如果只有FFmpeg.wasm可用，提示用户拖拽文件
+                    if (!ffmpegAvailable && ffmpegWasmAvailable) {
+                      message.info('当前使用FFmpeg.wasm，建议拖拽文件到下方区域以获得更好的兼容性');
+                    }
                   } catch (error) {
                     message.error('获取视频信息失败，请检查文件路径');
                   }
@@ -641,7 +659,33 @@ const App: React.FC = () => {
               
               const files = e.dataTransfer.files;
               if (files.length > 0) {
-                await handleFileSelect(files[0]);
+                const file = files[0];
+                await handleFileSelect(file);
+                
+                // 拖拽文件后，尝试自动获取视频信息
+                if (ffmpegWasmAvailable) {
+                  try {
+                    message.info('使用FFmpeg.wasm获取视频信息...');
+                    const info = await ffmpegWasmService.getVideoInfo(file);
+                    if (info.duration > 0) {
+                      setVideoInfo({
+                        path: file.name,
+                        filename: file.name,
+                        duration: info.duration,
+                        width: info.width,
+                        height: info.height,
+                        fps: info.fps,
+                        bitrate: 0,
+                        format: info.format,
+                        size: file.size
+                      });
+                      message.success('视频信息获取成功（FFmpeg.wasm）');
+                    }
+                  } catch (error) {
+                    console.error('FFmpeg.wasm get video info failed:', error);
+                    message.warning('FFmpeg.wasm获取视频信息失败，请手动设置文件路径');
+                  }
+                }
               }
             }}
           >
