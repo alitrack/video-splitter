@@ -10,9 +10,56 @@ pub struct VideoSplitter {
 
 impl VideoSplitter {
     pub fn new() -> Self {
+        let ffmpeg_path = Self::find_ffmpeg_path();
+        println!("VideoSplitter using ffmpeg path: {}", ffmpeg_path);
+        
         Self {
-            ffmpeg_path: "ffmpeg".to_string(),
+            ffmpeg_path,
         }
+    }
+    
+    fn find_ffmpeg_path() -> String {
+        let possible_paths = vec![
+            "ffmpeg",
+            "/usr/local/bin/ffmpeg",
+            "/opt/homebrew/bin/ffmpeg",
+            "/usr/bin/ffmpeg",
+        ];
+        
+        for path in possible_paths {
+            if std::process::Command::new(path)
+                .arg("-version")
+                .output()
+                .map(|output| output.status.success())
+                .unwrap_or(false)
+            {
+                return path.to_string();
+            }
+        }
+        
+        "ffmpeg".to_string() // 默认回退
+    }
+    
+    fn find_ffprobe_path() -> String {
+        let possible_paths = vec![
+            "ffprobe",
+            "/usr/local/bin/ffprobe",
+            "/opt/homebrew/bin/ffprobe",
+            "/usr/bin/ffprobe",
+        ];
+        
+        for path in possible_paths {
+            if std::process::Command::new(path)
+                .arg("-version")
+                .output()
+                .map(|output| output.status.success())
+                .unwrap_or(false)
+            {
+                return path.to_string();
+            }
+        }
+        
+        "ffprobe".to_string() // 默认回退
     }
 
     pub async fn split_video(
@@ -95,7 +142,8 @@ impl VideoSplitter {
     }
 
     fn get_video_duration(&self, video_path: &Path) -> VideoResult<f64> {
-        let output = Command::new("ffprobe")
+        let ffprobe_path = Self::find_ffprobe_path();
+        let output = Command::new(ffprobe_path)
             .args([
                 "-v",
                 "quiet",

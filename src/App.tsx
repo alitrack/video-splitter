@@ -42,11 +42,22 @@ const App: React.FC = () => {
   React.useEffect(() => {
     const checkFFmpeg = async () => {
       try {
-        // 这里可以添加一个检查FFmpeg是否可用的API调用
-        setFfmpegAvailable(true);
+        // 调用后端检查FFmpeg是否可用
+        const systemRequirements = await VideoService.checkSystemRequirements();
+        console.log('System requirements check:', systemRequirements);
+        setFfmpegAvailable(systemRequirements.ffmpeg_available);
+        
+        if (!systemRequirements.ffmpeg_available) {
+          message.warning('系统FFmpeg不可用，将尝试加载FFmpeg.wasm');
+          // 如果系统FFmpeg不可用，自动尝试初始化FFmpeg.wasm
+          initializeFFmpegWasm();
+        } else {
+          message.success('系统FFmpeg可用，性能最佳');
+        }
       } catch (error) {
+        console.error('FFmpeg check failed:', error);
         setFfmpegAvailable(false);
-        // 如果系统FFmpeg不可用，尝试初始化FFmpeg.wasm
+        // 如果检查失败，尝试初始化FFmpeg.wasm
         initializeFFmpegWasm();
       }
     };
@@ -182,8 +193,60 @@ const App: React.FC = () => {
         split_type: splitTypeObj
       };
 
-      // 调用后端API进行视频分割
-      const result = await VideoService.splitVideo(request);
+      // 选择使用哪种分割方式
+      let result;
+      if (ffmpegAvailable) {
+        // 使用系统FFmpeg
+        console.log('Using system FFmpeg for splitting');
+        result = await VideoService.splitVideo(request);
+      } else if (ffmpegWasmAvailable && videoFile) {
+        // 使用FFmpeg.wasm
+        console.log('Using FFmpeg.wasm for splitting');
+        const splitPoints = splitParams.manualPoints.length > 0 ? splitParams.manualPoints : [];
+        
+        // 如果是时间分割，生成分割点
+        if (splitType === 'time') {
+          const duration = videoInfo?.duration || 0;
+          const segmentDuration = splitParams.duration;
+          const segmentCount = splitParams.count || Math.ceil(duration / segmentDuration);
+          
+          splitPoints.length = 0; // 清空现有分割点
+          for (let i = 1; i < segmentCount; i++) {
+            splitPoints.push(i * segmentDuration);
+          }
+        }
+        
+        const blobs = await ffmpegWasmService.splitVideo(videoFile, splitPoints, (progress) => {
+          setProgress({
+            current: progress,
+            total: 100,
+            message: `FFmpeg.wasm处理中... ${progress.toFixed(1)}%`,
+            percentage: progress,
+          });
+        });
+        
+        // 转换Blob结果为文件路径格式
+        result = {
+          success: true,
+          output_files: blobs.map((_, index) => `segment_${index + 1}.mp4`),
+          errors: [],
+          processing_time: 0
+        };
+        
+        // 下载生成的文件
+        blobs.forEach((blob, index) => {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `segment_${index + 1}.mp4`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        });
+      } else {
+        throw new Error('没有可用的视频处理引擎');
+      }
       
       if (result.success) {
         // 转换结果格式
@@ -490,7 +553,9 @@ const App: React.FC = () => {
                   }
                   
                   try {
+                    console.log('Attempting to get video info for:', videoPath);
                     const info = await VideoService.getVideoInfo(videoPath);
+                    console.log('Video info received:', info);
                     setVideoInfo(info);
                     
                     // 设置默认输出目录
@@ -499,11 +564,17 @@ const App: React.FC = () => {
                     
                     message.success('视频信息获取成功');
                   } catch (error) {
+                    console.error('Video info error:', error);
                     const errorMessage = (error as Error).message;
                     message.error('获取视频信息失败：' + errorMessage);
                     
                     if (errorMessage.includes('FFmpeg')) {
                       message.error('FFmpeg未正确安装或配置');
+                      // 如果FFmpeg失败，尝试使用FFmpeg.wasm
+                      if (!ffmpegWasmAvailable && !ffmpegWasmLoading) {
+                        message.info('尝试使用FFmpeg.wasm获取视频信息...');
+                        initializeFFmpegWasm();
+                      }
                     } else if (errorMessage.includes('file not found')) {
                       message.error('无法访问视频文件');
                     } else if (errorMessage.includes('format')) {

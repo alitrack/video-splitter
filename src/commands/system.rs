@@ -69,11 +69,24 @@ pub async fn get_memory_usage() -> Result<(u64, u64), String> {
 }
 
 fn check_ffmpeg_available() -> bool {
-    std::process::Command::new("ffmpeg")
+    println!("Checking FFmpeg availability...");
+    
+    let result = std::process::Command::new("ffmpeg")
         .arg("-version")
         .output()
-        .map(|output| output.status.success())
-        .unwrap_or(false)
+        .map(|output| {
+            let success = output.status.success();
+            println!("FFmpeg command result: success={}, stderr={}", 
+                success, String::from_utf8_lossy(&output.stderr));
+            success
+        })
+        .unwrap_or_else(|e| {
+            println!("FFmpeg command failed: {}", e);
+            false
+        });
+    
+    println!("FFmpeg available: {}", result);
+    result
 }
 
 #[tauri::command]

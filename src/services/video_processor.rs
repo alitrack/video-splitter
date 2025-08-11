@@ -11,10 +11,61 @@ pub struct VideoProcessor {
 
 impl VideoProcessor {
     pub fn new() -> Self {
+        // 尝试不同的FFmpeg路径
+        let ffmpeg_path = Self::find_ffmpeg_path();
+        let ffprobe_path = Self::find_ffprobe_path();
+        
+        println!("Using ffmpeg path: {}", ffmpeg_path);
+        println!("Using ffprobe path: {}", ffprobe_path);
+        
         Self {
-            ffmpeg_path: "ffmpeg".to_string(),
-            ffprobe_path: "ffprobe".to_string(),
+            ffmpeg_path,
+            ffprobe_path,
         }
+    }
+    
+    fn find_ffmpeg_path() -> String {
+        let possible_paths = vec![
+            "ffmpeg",
+            "/usr/local/bin/ffmpeg",
+            "/opt/homebrew/bin/ffmpeg",
+            "/usr/bin/ffmpeg",
+        ];
+        
+        for path in possible_paths {
+            if std::process::Command::new(path)
+                .arg("-version")
+                .output()
+                .map(|output| output.status.success())
+                .unwrap_or(false)
+            {
+                return path.to_string();
+            }
+        }
+        
+        "ffmpeg".to_string() // 默认回退
+    }
+    
+    fn find_ffprobe_path() -> String {
+        let possible_paths = vec![
+            "ffprobe",
+            "/usr/local/bin/ffprobe",
+            "/opt/homebrew/bin/ffprobe",
+            "/usr/bin/ffprobe",
+        ];
+        
+        for path in possible_paths {
+            if std::process::Command::new(path)
+                .arg("-version")
+                .output()
+                .map(|output| output.status.success())
+                .unwrap_or(false)
+            {
+                return path.to_string();
+            }
+        }
+        
+        "ffprobe".to_string() // 默认回退
     }
     
     pub async fn get_video_info(&self, path: &str) -> VideoResult<VideoInfo> {
